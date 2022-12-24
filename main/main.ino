@@ -1,13 +1,15 @@
 #include "Map.hpp";
+#include "Task.h";
 
 Map<String, int> m(10);
+Task task(1);
 
-void setup() {
-  // put your setup code here, to run once:
+void setup()
+{
 
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void loop() 
+{
 
 }
