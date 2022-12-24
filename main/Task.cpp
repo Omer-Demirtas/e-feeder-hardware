@@ -1,5 +1,7 @@
 #include "Task.h";
 
-Task::Task(int _id) {
-  id = _id;
+Task::Task(int hour, int minute, int second) {
+  hour = hour;
+  minute = minute;
+  second = second;
 }
