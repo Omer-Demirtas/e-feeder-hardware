@@ -3,7 +3,6 @@
 #include "DB.hpp";
 
 Map<String, int> m(10);
-Task task(1);
 DB db("asd");
 
 void initCard()
@@ -21,9 +20,17 @@ void initializeTasks()
    db.initDB();
 
    Task* tasks = db.getTasks();
-   
+   for(int i = 0; i < 1; i++)
+    {
+      Serial.print(String(tasks[i].getHour()));
+      Serial.print("*");
+      Serial.print(tasks[i].getMinute());
+      Serial.print("*");
+      Serial.print(tasks[i].getSecond());
+      Serial.println();
+    }
    db.printStatus();
-   Serial.println(tasks[0].getId());
+   
 }
 
 /*

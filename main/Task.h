@@ -5,13 +5,17 @@ class Task
 {
   private: 
     int id;
-    int hour,
+    int hour;
     int minute;
     int second;
   public:
     Task(){};
-    Task(int hour, int minute, int second);
-    int getId() {return id;}
+    Task(int _hour, int _minute, int _second);
+    int getId() {return 1;}
+    int getHour() {return hour;}
+    int getMinute() {return minute;}
+    int getSecond() {return second;}
+
 };
 
 #endif
