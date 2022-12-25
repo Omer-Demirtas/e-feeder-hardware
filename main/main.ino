@@ -4,8 +4,8 @@
 #include "Task.h";
 #include "DB.hpp";
 
-AlarmID_t myAlarm = 0;  // this will be the ID for the first allocated alarm
-
+AlarmID_t myAlarm = 0;
+int pingTaskId = 0;
 
 /*
  * TODO: 
@@ -33,27 +33,31 @@ void initTasks()
    for(int i = 0; i < db.getTaskSize(); i++)
    {
     scheduleTask(tasks[i], i, alarmEvent);
-  
    }
 }
 
 /*
  * to control any changes for this device 
 */
-void sendLivePing() { }
+void sendLivePing() 
+{
+  Serial.println("Live ping");
+  
+  if(db.sendLivePing())
+  { 
+    initTasks();
+  }
+}
 
 void scheduleTask(Task task, int index, void (*func)())
 {
-  Serial.println(String(task.getHour()) + String(task.getMinute()) + String(task.getSecond()));
-  int ID = Alarm.alarmOnce(AlarmHMS(7,30,0), alarmEvent);
-  //int ID = Alarm.alarmOnce(AlarmHMS(task.getHour(),task.getMinute(), 0), func);
+  int ID = Alarm.alarmOnce(AlarmHMS(task.getHour(),task.getMinute(), 0), func);
   db.setTaskId(index, ID);
 }
 
 void alarmEvent()
 {
   Serial.println("Alarm");
-  Serial.println("ASDASDASDSADAS");
 }
 
 void setup()
@@ -63,12 +67,14 @@ void setup()
   initCard();
   db.initDB();
   initTasks();
+
+  pingTaskId = Alarm.timerRepeat(5, sendLivePing);
 }
 
 void loop() 
 {
   digitalClockDisplay();
-  Alarm.delay(1000);
+  Alarm.delay(7000);
 }
 
 
