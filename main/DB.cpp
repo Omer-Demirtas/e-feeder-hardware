@@ -7,8 +7,13 @@ DB::DB(String url) {
   url = url;
 }
 
-void DB::initDB() {
+void DB::initDB() 
+{
+  initTasks();  
+}
 
+void DB::initTasks()
+{
   DynamicJsonDocument doc(1024);
 
   deserializeJson(doc, "{\"fields\": {\"07-30-00\": {\"integerValue\": \"100\"}}}");

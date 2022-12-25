@@ -13,7 +13,8 @@ class DB {
   public:
     DB(String url);
     void initDB();
-    void sendLivePing();
+    void initTasks();
+    bool sendLivePing() { return true; };
     void setTaskId(int _index, int _id) { tasks[_index].setId(_id); };
     int getTaskSize() { return taskSize; };
     Task* getTasks() { return tasks; };
