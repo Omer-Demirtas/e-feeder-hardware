@@ -15,7 +15,8 @@ class Task
     Task(){};
     Task(int _hour, int _minute, int _second);
     Task(String _key, int _amount);
-    int getId() {return 1;}
+    int getId() {return id;};
+    void setId(int _id) { id = _id; };    
     int getHour() {return hour;}
     int getMinute() {return minute;}
     int getSecond() {return second;}
