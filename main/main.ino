@@ -2,6 +2,12 @@
 #include "Task.h";
 #include "DB.hpp";
 
+/*
+ * TODO: 
+  * Create a project object and all of the function should be in that class.  
+  * create a DB interface to abstract db operation
+*/
+
 Map<String, int> m(10);
 DB db("asd");
 
