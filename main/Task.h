@@ -1,6 +1,8 @@
 #ifndef TASK_H
 #define TASK_H
 
+#include "Arduino.h";
+
 class Task 
 {
   private: 
@@ -15,7 +17,7 @@ class Task
     int getHour() {return hour;}
     int getMinute() {return minute;}
     int getSecond() {return second;}
-
+    String getTimeString(){ return (String(hour) + "-" + String(minute) + "-" + String(second)); }
 };
 
 #endif

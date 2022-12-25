@@ -28,14 +28,8 @@ void initializeTasks()
    Task* tasks = db.getTasks();
    for(int i = 0; i < 1; i++)
     {
-      Serial.print(String(tasks[i].getHour()));
-      Serial.print("*");
-      Serial.print(tasks[i].getMinute());
-      Serial.print("*");
-      Serial.print(tasks[i].getSecond());
-      Serial.println();
+      Serial.println(tasks[i].getTimeString());
     }
-   db.printStatus();
    
 }
 
