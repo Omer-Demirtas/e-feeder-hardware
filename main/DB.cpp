@@ -11,31 +11,35 @@ void DB::initDB() {
 
   DynamicJsonDocument doc(1024);
 
-  deserializeJson(doc, "{\"fields\": {\"17-01-12\": {\"integerValue\": \"100\"}}}");
+  deserializeJson(doc, "{\"fields\": {\"07-30-00\": {\"integerValue\": \"100\"}}}");
 
   JsonObject documentRoot = doc["fields"].as<JsonObject>();
+
+  taskSize = documentRoot.size();
   
   if(documentRoot.size() == 0) return;
   
   tasks =  malloc(sizeof(Task) * documentRoot.size());
 
   int i = 0;
-  for (JsonPair keyValue : documentRoot) {
-      Serial.println(keyValue.key().c_str());
-      
-      String key = "17-01-12";
+  for (JsonPair keyValue : documentRoot) 
+  {
+      String key = keyValue.key().c_str();
       int amount = doc["fields"]["17-01-12"]["integerValue"];
     
       tasks[i] = Task(key, amount);
       i++;
   }
-
-
-
-  //tasks[0] = Task(17, 29, 50);
 }
 
 void DB::printStatus()
 {
-  Serial.println(tasks[0].getId());
+  char buffer[30];
+  
+  sprintf(buffer, "tasks from DB = %p", tasks);
+
+  Serial.println(buffer);
+
+  tasks[0].setId(1234);
+  //Serial.println(tasks[0].getId());
 }

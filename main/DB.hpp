@@ -6,6 +6,7 @@
 
 class DB {
   private:
+    int taskSize;
     String url;
     Task *tasks;
     
@@ -13,6 +14,8 @@ class DB {
     DB(String url);
     void initDB();
     void sendLivePing();
+    void setTaskId(int _index, int _id) { tasks[_index].setId(_id); };
+    int getTaskSize() { return taskSize; };
     Task* getTasks() { return tasks; };
     void printStatus();
 };
