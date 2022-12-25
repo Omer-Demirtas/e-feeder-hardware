@@ -3,8 +3,12 @@
 #include "Map.hpp";
 #include "Task.h";
 #include "DB.hpp";
+#include "Engine.h";
 
 AlarmID_t myAlarm = 0;
+
+Engine engine(8, 10, 9, 11);
+
 int pingTaskId = 0;
 
 /*
@@ -29,6 +33,8 @@ void initCard()
 void initTasks()
 { 
    Task* tasks = db.getTasks();
+   
+   //engine.run();
    
    for(int i = 0; i < db.getTaskSize(); i++)
    {
