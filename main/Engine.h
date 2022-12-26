@@ -19,7 +19,6 @@ class Engine : Stepper {
     void run()
     {
       step(2048);
-      delay(1000);
     };
 };
 
