@@ -47,6 +47,7 @@ void initTasks()
 */
 void sendLivePing() 
 {
+  delay(5000);
   Serial.println("Live ping");
   
   if(db.sendLivePing())
@@ -66,6 +67,11 @@ void alarmEvent()
   Serial.println("Alarm");
 }
 
+ISR(TIMER1_COMPA_vect)
+{
+  Serial.println("Timer");
+}
+
 void setup()
 {
   setTime(7,29,55,1,1,10); // set time to 7:29:40am Jan 1 2010 
@@ -75,6 +81,25 @@ void setup()
   initTasks();
 
   pingTaskId = Alarm.timerRepeat(5, sendLivePing);
+
+    cli();
+  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
+
+  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1  = 0;
+  OCR1A = 15624;
+  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
+  TCCR1B |= (1 << WGM12);
+  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
+  TCCR1B |= (1 << CS12) | (1 << CS10);
+  TIMSK1 |= (1 << OCIE1A);
+  /* Timer1 kesmesi aktif hale getirildi */
+
+  sei();
+
+  
 }
 
 void loop() 
