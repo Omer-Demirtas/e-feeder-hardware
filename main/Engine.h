@@ -14,7 +14,7 @@ class Engine : Stepper {
   
     Engine(int p1, int p2, int p3, int p4) : Stepper(2038, p1, p2, p3, p4)
     {
-      setSpeed(5);
+      setSpeed(15);
     };
     void run()
     {
