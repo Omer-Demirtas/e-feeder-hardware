@@ -24,7 +24,7 @@ void DB::initTasks()
   
   if(documentRoot.size() == 0) return;
   
-  tasks =  malloc(sizeof(Task) * documentRoot.size());
+  tasks =  (Task*)malloc(sizeof(Task) * documentRoot.size());
 
   int i = 0;
   for (JsonPair keyValue : documentRoot) 
