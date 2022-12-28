@@ -4,10 +4,19 @@
 #include "Task.h";
 #include "DB.hpp";
 #include "Engine.h";
+#include <AccelStepper.h>
 
+const int stepsPerRevolution = 2048;  // change this to fit the number of steps per revolution
 AlarmID_t myAlarm = 0;
 
-Engine engine(8, 10, 9, 11);
+
+// ULN2003 Motor Driver Pins
+#define IN1 5
+#define IN2 4
+#define IN3 14
+#define IN4 12
+//Engine engine(8, 10, 9, 11);
+AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN3, IN2, IN4);
 
 int pingTaskId = 0;
 
@@ -22,7 +31,7 @@ DB db("asd");
 
 void initCard()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   Serial.println("Card Started");
 }
@@ -67,10 +76,6 @@ void alarmEvent()
   Serial.println("Alarm");
 }
 
-ISR(TIMER1_COMPA_vect)
-{
-  Serial.println("Timer");
-}
 
 void setup()
 {
@@ -82,30 +87,18 @@ void setup()
 
   pingTaskId = Alarm.timerRepeat(5, sendLivePing);
 
-    cli();
-  /* Ayarlamaların yapılabilmesi için öncelikle kesmeler durduruldu */
-
-  /* Timer1 kesmesi saniyede bir çalışacak şekilde ayarlanacaktır (1 Hz)*/
-  TCCR1A = 0;
-  TCCR1B = 0;
-  TCNT1  = 0;
-  OCR1A = 15624;
-  /* Bir saniye aralıklar için zaman sayıcısı ayarlandı */
-  TCCR1B |= (1 << WGM12);
-  /* Adımlar arasında geçen süre kristal hızının 1024'e bölümü olarak ayarlandı */
-  TCCR1B |= (1 << CS12) | (1 << CS10);
-  TIMSK1 |= (1 << OCIE1A);
-  /* Timer1 kesmesi aktif hale getirildi */
-
-  sei();
-
-  
+  stepper.setMaxSpeed(500);
+  stepper.setAcceleration(100);
 }
 
 void loop() 
 {
+  /*
   digitalClockDisplay();
   Alarm.delay(7000);
+  */
+  stepper.moveTo(stepsPerRevolution);
+  stepper.run();
 }
 
 
