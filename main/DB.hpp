@@ -20,6 +20,7 @@ class DB {
     Task* getTasks() { return tasks; };
     void printStatus();
     String getRequest(String path);
+    String getDocument(String documentPath, String mask);
 };
 
 #endif
