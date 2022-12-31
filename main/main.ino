@@ -5,6 +5,9 @@
 #include "DB.hpp";
 #include "Engine.h";
 #include <AccelStepper.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <FirebaseArduino.h>
 
 const int stepsPerRevolution = 2048;  // change this to fit the number of steps per revolution
 AlarmID_t myAlarm = 0;
@@ -25,15 +28,27 @@ int pingTaskId = 0;
   * Create a project object and all of the function should be in that class.  
   * create a DB interface to abstract db operation
   * create a schedular service to manage tasks
+  * Saving card logs online
 */
 
-DB db("asd");
+DB db("https://feeder-604ff-default-rtdb.firebaseio.com/");
 
 void initCard()
 {
   Serial.begin(115200);
+  
+  WiFi.begin("ASDFG123", "ASDFG123");
 
-  Serial.println("Card Started");
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(1000);
+    Serial.print(".");
+  }
+  
+  Serial.println("connected..! ");
+  Serial.print("Got IP: ");  Serial.println(WiFi.localIP());
+  
+  Serial.println("Initialize Completed Successfuly!");
 }
 
 /*
@@ -97,7 +112,9 @@ void loop()
   digitalClockDisplay();
   Alarm.delay(7000);
   */
-  stepper.moveTo(stepsPerRevolution);
+  if (stepper.distanceToGo() == 0)
+    stepper.moveTo(-stepper.currentPosition());
+  stepper.moveTo(1000000);
   stepper.run();
 }
 
