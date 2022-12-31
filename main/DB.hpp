@@ -11,7 +11,7 @@ class DB {
     Task *tasks;
     
   public:
-    DB(String url);
+    DB(String _url);
     void initDB();
     void initTasks();
     bool sendLivePing() { return true; };
@@ -19,6 +19,7 @@ class DB {
     int getTaskSize() { return taskSize; };
     Task* getTasks() { return tasks; };
     void printStatus();
+    String getRequest(String path);
 };
 
 #endif
