@@ -46,14 +46,63 @@ void DB::initDB()
 
 String DB::getDocument(String documentPath, String mask)
 {
+    bool isTaskStart = false;
+    int lastTaskId = 0;
+    tasks  =  (Task*)malloc(sizeof(Task) * 10);
+    
+    Serial.print("Get a document... ");
 
+    if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", documentPath.c_str(), mask.c_str()))
+    {
+      Serial.printf("ok\n%s\n\n", fbdo.payload().c_str());
+      FirebaseJson payload;
+      payload.setJsonData(fbdo.payload().c_str());
+      
+      FirebaseJsonData jsonData;
+      payload.get(jsonData, "fields/", true);
 
-        Serial.print("Get a document... ");
+      size_t len = payload.iteratorBegin();
+      
+      FirebaseJson::IteratorValue value;
+      
+      for (size_t i = 0; i < len; i++)
+      {
+          value = payload.valueAt(i);
+          String key = value.key.c_str();
 
-        if (Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", documentPath.c_str(), mask.c_str()))
-            Serial.printf("ok\n%s\n\n", fbdo.payload().c_str());
-        else
-            Serial.println(fbdo.errorReason());
+          Serial.println("key= " + key);
+          if(isTaskStart)
+          {
+            if(key == "integerValue")
+            {
+              lastTaskId++;
+            } else
+            {
+              Serial.println(String(i) + " " + key.substring(0, 2) + key.substring(3, 5));
+              tasks[lastTaskId] = Task(key.substring(0, 2).toInt(), key.substring(3, 5).toInt(), 0);
+            }
+          } 
+          
+          if(key == "fields") 
+          {
+            Serial.println("Taks start tru");
+            isTaskStart = true;
+          }
+          if(key == "createTime")
+          {
+            Serial.println("Taks start false");
+            isTaskStart = false;
+          }
+ 
+          Serial.printf("%d, Type: %s, Name: %s, Value: %s\n", i, value.type == FirebaseJson::JSON_OBJECT ? "object" : "array", value.key.c_str(), value.value.c_str());
+      }
+
+      taskSize = lastTaskId;
+
+      Serial.println(jsonData.stringValue);
+    }
+    else
+        Serial.println(fbdo.errorReason());
 }
 
 String DB::getRequest(String path)

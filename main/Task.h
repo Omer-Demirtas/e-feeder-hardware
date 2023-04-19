@@ -21,6 +21,7 @@ class Task
     int getMinute() {return minute;}
     int getSecond() {return second;}
     int getAmount() {return amount;}
+    void setAmount(int _amount) { amount = _amount; };
     String getTimeString(){ return (String(hour) + "-" + String(minute) + "-" + String(second)); }
 };
 

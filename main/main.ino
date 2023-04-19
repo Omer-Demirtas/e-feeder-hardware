@@ -7,7 +7,6 @@
 #include <AccelStepper.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <FirebaseArduino.h>
 
 const int stepsPerRevolution = 2048;  // change this to fit the number of steps per revolution
 AlarmID_t myAlarm = 0;
@@ -22,6 +21,8 @@ AlarmID_t myAlarm = 0;
 AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN3, IN2, IN4);
 
 int pingTaskId = 0;
+bool motorRun = false;
+long lastMotorRun = 0;
 
 /*
  * TODO: 
@@ -57,11 +58,12 @@ void initCard()
 void initTasks()
 { 
    Task* tasks = db.getTasks();
-   
+   Serial.println("init Taks Started" + String(tasks[0].getHour()));
    //engine.run();
    
    for(int i = 0; i < db.getTaskSize(); i++)
    {
+    Serial.println("task " + String(i) + " " + String(tasks[i].getHour()) + ":" + String(tasks[i].getMinute()));
     scheduleTask(tasks[i], i, alarmEvent);
    }
 }
@@ -71,6 +73,7 @@ void initTasks()
 */
 void sendLivePing() 
 {
+  
   delay(5000);
   Serial.println("Live ping");
   
@@ -89,18 +92,25 @@ void scheduleTask(Task task, int index, void (*func)())
 void alarmEvent()
 {
   Serial.println("Alarm");
+  //stepper.moveTo(-10000000);
+  //stepper.run();
+  motorRun = true;
+  lastMotorRun = millis();
 }
 
 
 void setup()
 {
-  setTime(7,29,55,1,1,10); // set time to 7:29:40am Jan 1 2010 
+  setTime(7,29,40,1,1,10); // set time to 7:29:40am Jan 1 2010 
+  
+  //Alarm.alarmOnce(7,30,0, alarmEvent);
+  //Alarm.alarmOnce(7,31,30, alarmEvent);
 
   initCard();
   db.initDB();
   initTasks();
 
-  pingTaskId = Alarm.timerRepeat(5, sendLivePing);
+  //pingTaskId = Alarm.timerRepeat(5, sendLivePing);
 
   stepper.setMaxSpeed(500);
   stepper.setAcceleration(100);
@@ -112,10 +122,31 @@ void loop()
   digitalClockDisplay();
   Alarm.delay(7000);
   */
+  /*
   if (stepper.distanceToGo() == 0)
     stepper.moveTo(-stepper.currentPosition());
-  stepper.moveTo(1000000);
+   
+  stepper.moveTo(-1000000);
   stepper.run();
+   */ 
+  long CurrentMillis = millis();
+    
+  if(CurrentMillis-lastMotorRun>=30000 && motorRun)
+  { 
+    Serial.println("10 second left");
+     motorRun = false;
+  }
+  
+  if(motorRun)
+  {
+    stepper.moveTo(-1000000);
+    stepper.run();
+    
+  }else
+  {
+    digitalClockDisplay();
+    Alarm.delay(1000);
+  }
 }
 
 
