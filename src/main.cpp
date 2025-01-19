@@ -3,6 +3,10 @@
 #include <Arduino.h>
 #include "Task.h"
 
+#include "Feeder.h"
+
+Feeder feeder;
+
 /*
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
@@ -22,6 +26,7 @@ void wifiConnection() {
 
 void alarmEvent() {
   Serial.println("Alarm");
+  feeder.feed();
 }
 
 void initializeTasks() {
@@ -33,10 +38,12 @@ void setup() {
 
   Serial.begin(9600);
 
+  feeder.init();
+  
   //wifiConnection();
 
   // set current time
-  setTime(7, 29, 40, 1, 1, 10);
+  setTime(7, 29, 55, 1, 1, 10);
 
   initializeTasks();
 }
