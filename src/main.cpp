@@ -75,7 +75,6 @@ void updateTimeFromNTP() {
 }
 
 void wifiConnection() {
-  //WiFi.begin("TURKSAT-KABLONET-RS0I-2.4G", "606cc36319ed");
   WiFi.begin("SamsungS22", "ieyt9222");
 
   while (WiFi.status() != WL_CONNECTED) {
