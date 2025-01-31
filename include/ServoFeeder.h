@@ -23,6 +23,8 @@ public:
     ServoFeeder(int servoPin);
     void init() override;
     void feed() override;
+    void startFeed() override;
+    void stopFeed() override;
 };
 
 #endif
