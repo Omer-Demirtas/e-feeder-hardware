@@ -15,8 +15,13 @@ void ServoFeeder::feed() {
     servo.write(0);
 }
 
-void ServoFeeder::startFeed() {
-    servo.write(180);
+void ServoFeeder::startFeed(int rotation) {
+    if (rotation > 0)
+    {
+        servo.write(180);
+    } else {
+        servo.write(0);
+    }
 }
 
 void ServoFeeder::stopFeed() {
