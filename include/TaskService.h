@@ -1,19 +1,28 @@
 #ifndef TASK_SERVICE_H
 #define TASK_SERVICE_H
 
-#include <ArduinoJson.h>
+#include "Task.h"
+#include <vector>
+#include <Arduino.h>
 
 // TaskService sınıfı
 class TaskService {
 private:
-    String apiUrl;                 // Görevleri çekmek için API URL'si
-    int taskList[10];    // Yerel görev listesi
+    String apiUrl;
+    std::vector<Task> tasks;
+    String lastUpdatedDate = "";
 
 public:
-    TaskService(const String& url); // Constructor
-    void fetchTasks();              // Görevleri çekme
-    //const tasklist getTasks() const; // Görev listesini alma
-    void completeTask(int index);   // Görevi tamamlandı olarak işaretleme
+    TaskService(const String& url);
+    void fetchTasks(void (*alarmEventCallback)());
+    void completeTask(long taskId);
+
+    std::vector<Task> getTasks() const {
+        return tasks;
+    }
+
+    String getLastUpdatedDate() { return lastUpdatedDate; }
+    void setLastUpdatedDate(String lastUpdatedDate) { this->lastUpdatedDate = lastUpdatedDate; }
 };
 
 #endif // TASK_SERVICE_H

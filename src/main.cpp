@@ -3,23 +3,38 @@
 #include <time.h>
 #include <WiFi.h>
 #include <Arduino.h>
+#include <HTTPClient.h>
 #include <TimeAlarms.h>
 #include "ServoFeeder.h"
+#include "TaskService.h"
+
+const char* serverUrl = "http://192.168.0.35:8080/device-config?id=6&lastUpdatedDate=";
+
+#define SLEEP_INTERVAL 500
+#define DEVICE_ID "ESP32-12345"
+
+// Each 10 min
+unsigned long requestDeley = 1 * 3 * 1000;
 
 ServoFeeder feeder(18);
+TaskService taskService(serverUrl);
+
 
 enum FeedAction {
   MOVE_FORWARD,
   MOVE_BACKWARD,
   STOP
 };
+
 struct FeedEvent {
   FeedAction action;
-  // In milliseconds
+  // In milliseconds 
   unsigned long duration;
 };
 
 std::queue<FeedEvent> eventQueue;
+
+unsigned long lastRequestTime;
 
 // Adds a movement event, split into multiple steps based on Alarm delay (500ms)
 void addMoveEvent(FeedAction action, unsigned long totalDuration) {
@@ -75,13 +90,6 @@ void alarmEvent() {
   addMoveEvent(STOP, 500);
 }
 
-void initializeTasks() {
-  Alarm.alarmOnce(6,00,0, alarmEvent);
-  Alarm.alarmOnce(12,00,0, alarmEvent);
-  Alarm.alarmOnce(18,00,0, alarmEvent);
-  Alarm.alarmOnce(00,00,0, alarmEvent); 
-}
-
 void waitForTimeSync() {
   struct tm timeinfo;
   Serial.print("Time Sync: ");
@@ -96,6 +104,8 @@ void waitForTimeSync() {
     Serial.print("❌");
   } else {
     Serial.print("✅");
+  
+    setTime(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
   }
 }
 
@@ -108,46 +118,24 @@ void printCurrentTime() {
   Serial.println(second());
 }
 
-void updateTimeFromNTP() {
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Time can not found!");
-    return;
-  }
-  
-  setTime(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-}
-
 void wifiConnection() {
-  // WiFi.begin("SamsungS22", "ieyt9222");
-
-  int networkCount = WiFi.scanNetworks();
-  Serial.println("Bulunan ağlar:");
-
-  for (int i = 0; i < networkCount; i++) {
-    Serial.printf("SSID: %s, Sinyal Gücü: %d dBm, Kanal: %d\n",
-                  WiFi.SSID(i).c_str(),
-                  WiFi.RSSI(i),
-                  WiFi.channel(i));
-  }
-
   WiFi.begin("TURKSAT-KABLONET-RS0I-2.4G", "606cc36319ed");
 
   int timeout = 0;
-
-  while (WiFi.status() != WL_CONNECTED && timeout < 20) { // 20 saniye boyunca dene
+  while (WiFi.status() != WL_CONNECTED && timeout < 20) {
     delay(1000);
     Serial.print(".");
     timeout++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi'ye bağlandı!");
+    Serial.println("nWiFi connection esteblished!");
     Serial.print("IP Adresi: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("\nBağlanamadı! Hata kodu:");
+    Serial.println("Wifi connection error with status code: ");
     Serial.println(WiFi.status());
+    return;
   }
 
   Serial.println("connected..! ");
@@ -157,24 +145,33 @@ void wifiConnection() {
 
   waitForTimeSync();
 
-  updateTimeFromNTP();
-
   printCurrentTime();
 }
 
-void setup() {
-  Task task();
+void setupAlarms() {
+  taskService.fetchTasks(alarmEvent);
 
+  lastRequestTime = millis();
+}
+
+void setup() {
   Serial.begin(115200);
  
   feeder.init();
 
   wifiConnection();
 
-  initializeTasks();
+  setupAlarms();
 }
 
 void loop() {
-  Alarm.delay(500);
+  Alarm.delay(SLEEP_INTERVAL);
+
   processEvents();
+
+  unsigned long now = millis();
+
+  if (now - lastRequestTime >= requestDeley) {
+    setupAlarms();
+  }
 }
