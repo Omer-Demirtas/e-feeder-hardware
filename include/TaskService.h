@@ -4,25 +4,16 @@
 #include "Task.h"
 #include <vector>
 #include <Arduino.h>
-
-// TaskService sınıfı
 class TaskService {
 private:
-    String apiUrl;
     std::vector<Task> tasks;
-    String lastUpdatedDate = "";
- 
+
 public:
-    TaskService(const String& url);
-    void fetchTasks(void (*alarmEventCallback)());
-    void completeTask(long taskId);
+    TaskService();
 
-    std::vector<Task> getTasks() const {
-        return tasks;
-    }
-
-    String getLastUpdatedDate() { return lastUpdatedDate; }
-    void setLastUpdatedDate(String lastUpdatedDate) { this->lastUpdatedDate = lastUpdatedDate; }
+    void addTask(Task& task, void (*alarmEventCallback)());
+    void deleteTask(String taskId);
+    std::vector<Task> getTasks() const;
 };
 
 #endif // TASK_SERVICE_H
