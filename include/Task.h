@@ -10,7 +10,7 @@ private:
     uint8_t alarmId;
 
 public:
-    Task(long id, String time) : id(String(id)), time(time), alarmId(255) {}
+    Task(String id, String time) : id(id), time(time), alarmId(255) {}
 
     String getId() const { return id; }
     void setId(String id) { this->id = id; }
