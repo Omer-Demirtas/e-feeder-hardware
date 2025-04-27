@@ -13,6 +13,7 @@ public:
 
     void addTask(Task& task, void (*alarmEventCallback)());
     void deleteTask(String taskId);
+    void deleteAllTasks();
     std::vector<Task> getTasks() const;
 };
 
