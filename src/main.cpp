@@ -226,7 +226,7 @@ void loop()
 
       if (commaIndex > 0)
       {
-        long id = message.substring(0, commaIndex).toInt();
+        String id = message.substring(0, commaIndex);
         String time = message.substring(commaIndex + 1);
 
         Task newTask(id, time);
@@ -237,10 +237,72 @@ void loop()
     {
       message.remove(0, 10);
       taskService.deleteTask(message);
-    } else {
+    } else if(message.startsWith("DELETEALLTASKS:")) {
+      taskService.deleteAllTasks();
+    } else if (message.startsWith("GETTASKS:"))
+    {
+      Serial.println("Tasks:");
+      SerialBT.println("Tasks:");
+      for (const auto &task : taskService.getTasks())
+      {
+        Serial.println(task.getId() + " " + task.getTime());
+        SerialBT.println(task.getId() + " " + task.getTime());
+      }
+    } else if (message.startsWith("ADDALLTASK:")) {
+      int start = 0;
+      message.remove(0, 11);
+      int end = message.indexOf(';');
+    
+      while (end != -1)
+      {
+        String taskStr = message.substring(start, end);
+        int commaIndex = taskStr.indexOf(',');
+    
+        if (commaIndex > 0)
+        {
+          String id = taskStr.substring(0, commaIndex);
+          String time = taskStr.substring(commaIndex + 1);
+    
+          Task newTask(id, time);
+          taskService.addTask(newTask, alarmEvent);
+        }
+    
+        start = end + 1;
+        end = message.indexOf(';', start);
+      }
+    
+      // Son task için (sonunda ; yoksa)
+      String lastTaskStr = message.substring(start);
+      int commaIndex = lastTaskStr.indexOf(',');
+    
+      if (commaIndex > 0)
+      {
+        String id = lastTaskStr.substring(0, commaIndex);
+        String time = lastTaskStr.substring(commaIndex + 1);
+    
+        Task newTask(id, time);
+        taskService.addTask(newTask, alarmEvent);
+      }
+    } else if (message.startsWith("FEED:")) {
+      String feedAction = message.substring(5);
+      if (feedAction == "START")
+      {
+        alarmEvent();
+        Serial.println("Feeding started...");
+        SerialBT.println("Feeding started...");
+      }
+      else if (feedAction == "STOP")
+      {
+        // TODO
+        Serial.println("Feeding stopped...");
+        SerialBT.println("Feeding stopped...");
+      }
+    } 
+    
+    else {
       Serial.println("Unknown command " + message);
       SerialBT.println("Unknown command " + message);
-    }
+    } 
   }
 
   Alarm.delay(SLEEP_INTERVAL);
