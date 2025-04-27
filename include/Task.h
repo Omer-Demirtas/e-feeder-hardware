@@ -4,30 +4,29 @@
 #include <Arduino.h>
 
 class Task {
-    private:
-        long id;
-        String time;
-        uint8_t alarmId;
-    public:
-        Task(long id, String time) : id(id), time(time) {}
+private:
+    String id;
+    String time;
+    uint8_t alarmId;
 
-        long getId() { return id; }
-        void setId(long id) { this->id = id; }
-        uint8_t getAlarmId() { return alarmId; }
-        void setAlarmId(uint8_t alarmId) { this->alarmId = alarmId; }
-        String getTime() { return time; }
-        void setTime(String time) { this->time = time; }
-    
-        int getHour() {
-            return time.substring(0, time.indexOf(':')).toInt();
-        }
+public:
+    Task(String id, String time) : id(id), time(time), alarmId(255) {}
 
-        int getMinute() {
-            int index = time.indexOf(':');
-            int secondIndex = time.indexOf(':', index + 1);
-            
-            return time.substring(index + 1, secondIndex).toInt();
-        }
+    String getId() const { return id; }
+    void setId(String id) { this->id = id; }
+    String getTime() const { return time; }
+    void setTime(String time) { this->time = time; }
+    uint8_t getAlarmId() const { return alarmId; }
+    void setAlarmId(uint8_t alarmId) { this->alarmId = alarmId; }
+
+    int getHour() const {
+        return time.substring(0, time.indexOf(':')).toInt();
+    }
+
+    int getMinute() const {
+        int index = time.indexOf(':');
+        return time.substring(index + 1).toInt();
+    }
 };
 
 #endif
