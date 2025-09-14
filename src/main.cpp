@@ -5,6 +5,7 @@
 #include <TimeAlarms.h>
 #include "ServoFeeder.h"
 #include "TaskService.h"
+#include "StorageService.h"
 #include <BluetoothSerial.h>
 
 BluetoothSerial SerialBT;
@@ -14,7 +15,10 @@ BluetoothSerial SerialBT;
 
 ServoFeeder feeder(18);
 
-TaskService taskService;
+
+StorageService storageService;
+
+TaskService taskService(storageService);
 
 enum FeedAction
 {
@@ -112,16 +116,16 @@ void executeEvent(FeedEvent event)
     Serial.println("Feeding done!");
     break;
   case MOVE_FORWARD_SLIDER:
+    /*
     Serial.println("Slider starting");
     delay(1000);
     stepMotor(STEP_SIZE * 9);
+    * */
     break;
   case MOVE_BACKWARD_SLIDER:
     Serial.println("Slider backward starting");
-    // TODO make it parametric
-    // delay(180000);
-    delay(1000);
-    stepMotor(-STEP_SIZE * 9);
+/*     delay(1000);
+    stepMotor(-STEP_SIZE * 9); */
     break;
   }
 }
@@ -202,6 +206,8 @@ void setup()
   pinMode(IN4, OUTPUT);
 
   feeder.init();
+  storageService.begin();
+  taskService.init(alarmEvent);
 
   SerialBT.begin("ESP32_BT");
 }
@@ -214,12 +220,12 @@ void loop()
     Serial.println("Message: " + message);
     SerialBT.println("Message: " + message);
 
-    if (message.startsWith("SETTIME:"))
+    if (message.startsWith("SETTIME"))
     {
       String datetime = message.substring(8); // "2025-04-26 15:45:00" gibi kalır
       setSystemTime(datetime);
     }
-    else if (message.startsWith("ADDTASK:"))
+    else if (message.startsWith("ADDTASK"))
     {
       message.remove(0, 8);
       int commaIndex = message.indexOf(',');
@@ -233,13 +239,13 @@ void loop()
         taskService.addTask(newTask, alarmEvent);
       }
     }
-    else if (message.startsWith("DELETETASK:"))
+    else if (message.startsWith("DELETETASK"))
     {
       message.remove(0, 10);
       taskService.deleteTask(message);
-    } else if(message.startsWith("DELETEALLTASKS:")) {
+    } else if(message.startsWith("DELETEALLTASKS")) {
       taskService.deleteAllTasks();
-    } else if (message.startsWith("GETTASKS:"))
+    } else if (message.startsWith("GETTASKS"))
     {
       Serial.println("Tasks:");
       SerialBT.println("Tasks:");
@@ -248,7 +254,7 @@ void loop()
         Serial.println(task.getId() + " " + task.getTime());
         SerialBT.println(task.getId() + " " + task.getTime());
       }
-    } else if (message.startsWith("ADDALLTASK:")) {
+    } else if (message.startsWith("ADDALLTASK")) {
       int start = 0;
       message.remove(0, 11);
       int end = message.indexOf(';');
@@ -283,7 +289,7 @@ void loop()
         Task newTask(id, time);
         taskService.addTask(newTask, alarmEvent);
       }
-    } else if (message.startsWith("FEED:")) {
+    } else if (message.startsWith("FEED")) {
       String feedAction = message.substring(5);
       if (feedAction == "START")
       {
@@ -308,5 +314,5 @@ void loop()
   Alarm.delay(SLEEP_INTERVAL);
 
   processEvents();
-  printCurrentTime();
+  // printCurrentTime();
 }
