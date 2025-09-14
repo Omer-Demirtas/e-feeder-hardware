@@ -4,13 +4,17 @@
 #include "Task.h"
 #include <vector>
 #include <Arduino.h>
+#include "StorageService.h"
+
 class TaskService {
 private:
+    StorageService& storage; 
     std::vector<Task> tasks;
 
 public:
-    TaskService();
+    TaskService(StorageService& storageService);
 
+    void init(void (*alarmEventCallback)());
     void addTask(Task& task, void (*alarmEventCallback)());
     void deleteTask(String taskId);
     void deleteAllTasks();
