@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <TimeLib.h>
 
+#include "Secrets.h";
+
 #include "TaskService.h"
 #include "CommandProcessor.h"
 #include "CommunicationInterface.h"
@@ -31,10 +33,6 @@
     #define IN3 5
     #define IN4 17
 #endif
-
-// --- Wi-Fi Credentials ---
-const char* ssid = "TODO";
-const char* password = "TODO";
 
 // --- NTP Configuration ---
 const char* ntpServer = "pool.ntp.org";
@@ -91,7 +89,7 @@ void onTaskTriggered_SetState(const Task& triggeredTask) {
 }
 
 void initWifi() {
-WiFi.begin(ssid, password);
+WiFi.begin(WIFI_SSID, WIFI_PASS);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
