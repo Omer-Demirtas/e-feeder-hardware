@@ -1,24 +1,32 @@
-#ifndef TASK_SERVICE_H
-#define TASK_SERVICE_H
+#pragma once
 
-#include "Task.h"
 #include <vector>
-#include <Arduino.h>
+#include "Task.h"
 #include "StorageService.h"
 
+// Callback func to handle task events
+using TaskTriggerCallback = std::function<void(const Task& triggeredTask)>;
+
 class TaskService {
-private:
-    StorageService& storage; 
-    std::vector<Task> tasks;
-
 public:
-    TaskService(StorageService& storageService);
+    TaskService(StorageService* storage);
 
-    void init(void (*alarmEventCallback)());
-    void addTask(Task& task, void (*alarmEventCallback)());
-    void deleteTask(String taskId);
+    void begin(TaskTriggerCallback callback);
+    
+    void update();
+
+    void handleTask(const Task& task);
+
+    void addTask(const Task& task);
+    void deleteTask(const String& taskID);
     void deleteAllTasks();
-    std::vector<Task> getTasks() const;
-};
+    const std::vector<Task>& getTasks() const;
+private:
+    StorageService* _storage;
+    std::vector<Task> _tasks;
 
-#endif // TASK_SERVICE_H
+    TaskTriggerCallback _onTaskTriggeredCallback;
+
+    unsigned long _lastCheckTime;
+    uint8_t _lastCheckedMinute;
+};

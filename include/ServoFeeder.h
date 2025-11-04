@@ -9,22 +9,37 @@
     #include <Servo.h>
 #endif
 
+
 class ServoFeeder : public Feeder {
+public:
+    // Constructor: Takes the pin, idle angle, and dispensing angle
+    ServoFeeder(int pin, int startAngle, int feedAngle);
+
+    // Overridden methods from the Feeder interface
+    void init() override;
+    void startDispensing(int amount) override;
+    void update() override;
+    bool isBusy() override;
+
 private:
     #ifdef ESP32
-        Servo servo;  
+        Servo _servo;  
     #else
-        Servo servo;
+        Servo _servo;
     #endif    
-    
-    int pin;
 
-public:
-    ServoFeeder(int servoPin);
-    void init() override;
-    void feed() override;
-    void startFeed(int rotation) override;
-    void stopFeed() override;
+    // Internal state management
+    enum State { IDLE, DISPENSING };
+    State _state;
+
+    // Servo configuration
+    int _pin;
+    int _startAngle;
+    int _feedAngle;
+
+    // Non-blocking timer variables
+    unsigned long _startTime;
+    unsigned long _dispenseDuration;
 };
 
 #endif
