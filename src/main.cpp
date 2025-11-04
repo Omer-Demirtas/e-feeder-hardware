@@ -1,318 +1,185 @@
-#include <queue>
-#include "Task.h"
-#include <time.h>
+#include <WiFi.h>
 #include <Arduino.h>
-#include <TimeAlarms.h>
-#include "ServoFeeder.h"
+#include <TimeLib.h>
+
 #include "TaskService.h"
-#include "StorageService.h"
-#include <BluetoothSerial.h>
+#include "CommandProcessor.h"
+#include "CommunicationInterface.h"
+#include "BluetoothInterface.h"
 
-BluetoothSerial SerialBT;
+// =========================================================================
+// === MOTOR TİPİ SEÇİMİ ===
+// =========================================================================
+#define MOTOR_TYPE_SERVO 1
+#define MOTOR_TYPE_STEPPER 2
 
-#define SLEEP_INTERVAL 500
-#define DEVICE_ID "ESP32-12345"
+// TODO read it from parameters 
+#define MOTOR_TYPE MOTOR_TYPE_SERVO
+// =========================================================================
 
-ServoFeeder feeder(18);
 
+// Seçilen motor tipine göre gerekli dosyaları ve ayarları dahil et
+#if MOTOR_TYPE == MOTOR_TYPE_SERVO
+    #include "ServoFeeder.h"
+    #define SERVO_PIN 13
+    #define IDLE_ANGLE 90
+    #define FEED_ANGLE 180
+#elif MOTOR_TYPE == MOTOR_TYPE_STEPPER
+    #include "StepperFeeder.h"
+    #define IN1 19
+    #define IN2 18
+    #define IN3 5
+    #define IN4 17
+#endif
+
+// --- Wi-Fi Credentials ---
+const char* ssid = "TODO";
+const char* password = "TODO";
+
+// --- NTP Configuration ---
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 3 * 3600; // Istanbul is GMT+3, so 3 hours * 3600 seconds/hour TODO make it dynamic
+const int daylightOffset_sec = 0;      // Turkey does not observe daylight saving
+
+/**
+ * @brief Prints the current local time to the Serial Monitor
+ */
+void printLocalTime() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to obtain time");
+        return;
+    }
+
+    char timeStringBuff[50]; 
+    strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
+    Serial.println(timeStringBuff);
+}
 
 StorageService storageService;
 
-TaskService taskService(storageService);
+TaskService taskService(&storageService);
 
-enum FeedAction
-{
-  MOVE_FORWARD,
-  MOVE_BACKWARD,
-  STOP,
-  MOVE_FORWARD_SLIDER,
-  MOVE_BACKWARD_SLIDER
+CommandProcessor commandProcessor(&taskService);
+
+BluetoothInterface btInterface("KediMamaMakinesi");
+
+CommunicationInterface* interfaces[] = {
+    &btInterface
 };
 
-struct FeedEvent
-{
-  FeedAction action;
-  // In milliseconds
-  unsigned long duration;
-};
+const int NUM_INTERFACES = sizeof(interfaces) / sizeof(interfaces[0]);
 
-std::queue<FeedEvent> eventQueue;
+Feeder* feeder;
 
-// Slder
+enum AppState { IDLE, WAITING_FOR_FEEDER };
 
-#define IN1 17
-#define IN2 16
-#define IN3 4
-#define IN4 0
+AppState currentState = IDLE;
 
-#define STEP_SIZE 512
+// =========================================================================
+// === CALLBACK METHOD | Called by #taskService
+// =========================================================================
+void onTaskTriggered_SetState(const Task& triggeredTask) {
+    Serial.printf("callback is called for %s %s /n", triggeredTask.getID(), triggeredTask.getTime());
 
-int steps[8][4] = {
-    {1, 0, 0, 0},
-    {1, 1, 0, 0},
-    {0, 1, 0, 0},
-    {0, 1, 1, 0},
-    {0, 0, 1, 0},
-    {0, 0, 1, 1},
-    {0, 0, 0, 1},
-    {1, 0, 0, 1}};
-
-void stepMotor(int stepCount)
-{
-  int stepIndex = 0;
-  int direction = (stepCount > 0) ? 1 : -1;
-  stepCount = abs(stepCount);
-
-  Serial.print("stepCount: ");
-  Serial.println(stepCount);
-
-  for (int i = 0; i < stepCount; i++)
-  {
-    digitalWrite(IN1, steps[stepIndex][0]);
-    digitalWrite(IN2, steps[stepIndex][1]);
-    digitalWrite(IN3, steps[stepIndex][2]);
-    digitalWrite(IN4, steps[stepIndex][3]);
-
-    stepIndex += direction;
-
-    if (stepIndex >= 8)
-    {
-      stepIndex = 0;
+    if (currentState == IDLE) {
+        feeder->startDispensing(triggeredTask.getAmount());
+        currentState = WAITING_FOR_FEEDER;
+    } else {
+        Serial.println("Feeder already working!");
     }
-    else if (stepIndex < 0)
-    {
-      stepIndex = 7;
+}
+
+void initWifi() {
+WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
     }
 
-    delay(2);
-  }
-}
+    Serial.println("/n");
 
-// Adds a movement event, split into multiple steps based on Alarm delay (500ms)
-void addMoveEvent(FeedAction action, unsigned long totalDuration)
-{
-  int steps = totalDuration / 500; // Convert total time into steps of 500ms
-  for (int i = 0; i < steps; i++)
-  {
-    eventQueue.push({action, 500});
-  }
-}
+    // TODO log more details
+    Serial.println("WiFi connected!");
 
-// Executes a single event
-void executeEvent(FeedEvent event)
-{
-  switch (event.action)
-  {
-  case MOVE_FORWARD:
-    feeder.startFeed(1);
-    Serial.println("Moving forward...");
-    break;
-  case MOVE_BACKWARD:
-    feeder.startFeed(-1);
-    Serial.println("Moving backward...");
-    break;
-  case STOP:
-    feeder.stopFeed();
-    Serial.println("Feeding done!");
-    break;
-  case MOVE_FORWARD_SLIDER:
-    /*
-    Serial.println("Slider starting");
-    delay(1000);
-    stepMotor(STEP_SIZE * 9);
-    * */
-    break;
-  case MOVE_BACKWARD_SLIDER:
-    Serial.println("Slider backward starting");
-/*     delay(1000);
-    stepMotor(-STEP_SIZE * 9); */
-    break;
-  }
-}
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
-// Processes events from the queue
-void processEvents()
-{
-  if (eventQueue.empty())
-    return;
+    struct tm timeinfo;
 
-  // Get next event
-  FeedEvent currentEvent = eventQueue.front();
-  eventQueue.pop();
+    Serial.print("Waiting for time sync");
 
-  // Execute the event
-  executeEvent(currentEvent);
-}
-
-void alarmEvent()
-{
-  Serial.println("Feeding started...");
-  SerialBT.println("Feeding started...");
-
-  // Add events dynamically based on alarm delay (500ms)
-  addMoveEvent(MOVE_BACKWARD, 500);
-  addMoveEvent(MOVE_FORWARD, 3000);
-  addMoveEvent(MOVE_BACKWARD, 500);
-  addMoveEvent(MOVE_FORWARD, 3000);
-  addMoveEvent(STOP, 500);
-  addMoveEvent(MOVE_FORWARD_SLIDER, 500);
-  addMoveEvent(MOVE_BACKWARD_SLIDER, 500);
-}
-
-void printCurrentTime()
-{
-  Serial.print("Currnet Time: ");
-  Serial.print(hour());
-  Serial.print(":");
-  Serial.print(minute());
-  Serial.print(":");
-  Serial.println(second());
-}
-
-void setSystemTime(const String &datetime)
-{
-  struct tm t;
-  if (sscanf(datetime.c_str(), "%d-%d-%d %d:%d:%d",
-             &t.tm_year, &t.tm_mon, &t.tm_mday,
-             &t.tm_hour, &t.tm_min, &t.tm_sec) == 6)
-  {
-
-    setTime(
-        t.tm_hour,
-        t.tm_min,
-        t.tm_sec,
-        t.tm_mday,
-        t.tm_mon,
-        t.tm_year);
-
-    Serial.println("Saat TimeLib ile başarıyla ayarlandı!");
-    Serial.println("Saat TimeLib ile başarıyla ayarlandı!");
-  }
-  else
-  {
-    Serial.println("Hatalı tarih formatı! " + datetime);
-    SerialBT.println("Hatalı tarih formatı! " + datetime);
-  }
-}
-
-void setup()
-{
-  Serial.begin(115200);
-
-  // SLIDER
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
-
-  feeder.init();
-  storageService.begin();
-  taskService.init(alarmEvent);
-
-  SerialBT.begin("ESP32_BT");
-}
-
-void loop()
-{
-  if (SerialBT.available())
-  {
-    String message = SerialBT.readStringUntil('\n');
-    Serial.println("Message: " + message);
-    SerialBT.println("Message: " + message);
-
-    if (message.startsWith("SETTIME"))
-    {
-      String datetime = message.substring(8); // "2025-04-26 15:45:00" gibi kalır
-      setSystemTime(datetime);
+    while (!getLocalTime(&timeinfo)) {
+        Serial.print(".");
+        delay(1000);
     }
-    else if (message.startsWith("ADDTASK"))
-    {
-      message.remove(0, 8);
-      int commaIndex = message.indexOf(',');
-
-      if (commaIndex > 0)
-      {
-        String id = message.substring(0, commaIndex);
-        String time = message.substring(commaIndex + 1);
-
-        Task newTask(id, time);
-        taskService.addTask(newTask, alarmEvent);
-      }
-    }
-    else if (message.startsWith("DELETETASK"))
-    {
-      message.remove(0, 10);
-      taskService.deleteTask(message);
-    } else if(message.startsWith("DELETEALLTASKS")) {
-      taskService.deleteAllTasks();
-    } else if (message.startsWith("GETTASKS"))
-    {
-      Serial.println("Tasks:");
-      SerialBT.println("Tasks:");
-      for (const auto &task : taskService.getTasks())
-      {
-        Serial.println(task.getId() + " " + task.getTime());
-        SerialBT.println(task.getId() + " " + task.getTime());
-      }
-    } else if (message.startsWith("ADDALLTASK")) {
-      int start = 0;
-      message.remove(0, 11);
-      int end = message.indexOf(';');
     
-      while (end != -1)
-      {
-        String taskStr = message.substring(start, end);
-        int commaIndex = taskStr.indexOf(',');
+    Serial.println("/n");
+
+    Serial.println("Time Sync Successfuly!");
+
+    time_t now_utc;
+    time(&now_utc);
+
+    time_t now_local = now_utc + gmtOffset_sec;
     
-        if (commaIndex > 0)
-        {
-          String id = taskStr.substring(0, commaIndex);
-          String time = taskStr.substring(commaIndex + 1);
-    
-          Task newTask(id, time);
-          taskService.addTask(newTask, alarmEvent);
+    setTime(now_local);
+}
+
+// =========================================================================
+// === SETUP
+// =========================================================================
+void setup() {
+    Serial.begin(115200);
+    Serial.println("\nSistem starting...");
+
+    initWifi();
+
+    #if MOTOR_TYPE == MOTOR_TYPE_SERVO
+        feeder = new ServoFeeder(SERVO_PIN, IDLE_ANGLE, FEED_ANGLE);
+    #elif MOTOR_TYPE == MOTOR_TYPE_STEPPER
+        feeder = new StepperFeeder(IN1, IN2, IN3, IN4);
+    #endif
+
+    storageService.begin();
+
+    taskService.begin(onTaskTriggered_SetState);
+
+    feeder->init();
+
+    for (int i = 0; i < NUM_INTERFACES; i++) {
+        interfaces[i]->begin();
+    }
+
+    printLocalTime();
+
+    Serial.println("System ready to start!");
+}
+
+
+// =========================================================================
+// === LOOP
+// =========================================================================
+void loop() {
+    feeder->update();
+    taskService.update();
+
+    for (int i = 0; i < NUM_INTERFACES; i++) {
+        if (interfaces[i]->commandAvailable()) {
+            String command = interfaces[i]->readCommand();
+            commandProcessor.process(command, interfaces[i]);
         }
-    
-        start = end + 1;
-        end = message.indexOf(';', start);
-      }
-    
-      // Son task için (sonunda ; yoksa)
-      String lastTaskStr = message.substring(start);
-      int commaIndex = lastTaskStr.indexOf(',');
-    
-      if (commaIndex > 0)
-      {
-        String id = lastTaskStr.substring(0, commaIndex);
-        String time = lastTaskStr.substring(commaIndex + 1);
-    
-        Task newTask(id, time);
-        taskService.addTask(newTask, alarmEvent);
-      }
-    } else if (message.startsWith("FEED")) {
-      String feedAction = message.substring(5);
-      if (feedAction == "START")
-      {
-        alarmEvent();
-        Serial.println("Feeding started...");
-        SerialBT.println("Feeding started...");
-      }
-      else if (feedAction == "STOP")
-      {
-        // TODO
-        Serial.println("Feeding stopped...");
-        SerialBT.println("Feeding stopped...");
-      }
-    } 
-    
-    else {
-      Serial.println("Unknown command " + message);
-      SerialBT.println("Unknown command " + message);
-    } 
-  }
+    }
 
-  Alarm.delay(SLEEP_INTERVAL);
-
-  processEvents();
-  // printCurrentTime();
+    switch (currentState) {
+        case WAITING_FOR_FEEDER: {
+            if (!feeder->isBusy()) {
+                Serial.println("Motor gorevi tamamladi. Bosa geciliyor.");
+                currentState = IDLE;
+            }
+            break;
+        }
+        case IDLE: {
+            break;
+        }
+    }
 }
