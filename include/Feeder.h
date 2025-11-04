@@ -3,11 +3,18 @@
 
 class Feeder {
 public:
-    virtual ~Feeder() = default; 
+    virtual ~Feeder() {}
+
     virtual void init() = 0;
-    virtual void feed() = 0;
-    virtual void startFeed(int rotation) = 0;
-    virtual void stopFeed() = 0;
+
+    // Starts the dispensing process. This is non-blocking.
+    virtual void startDispensing(int amount) = 0;
+
+    // Must be called repeatedly in the main loop. Handles the timing.
+    virtual void update() = 0;
+
+    // Returns true if the feeder is currently in the middle of dispensing.
+    virtual bool isBusy() = 0;
 };
 
 #endif
