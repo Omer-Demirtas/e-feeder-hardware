@@ -38,9 +38,26 @@ void CommandProcessor::process(const String& message, CommunicationInterface* ch
         } else {
             channel->sendResponse("ERROR: Invalid ADDTASK format. Use: ADDTASK id,hh:mm");
         }
-    } else if (message.startsWith("FEED")) {
+    } else if (message.startsWith(Commands::FEED)) {
         _taskService->handleTask(Task("0", "00:00", 100));
         channel->sendResponse("OK: Feeding started.");
+    } else if (message.startsWith(Commands::DELETE_ALL)) {
+        _taskService->deleteAllTasks();
+        channel->sendResponse("OK: All Task Deleted.");
+    } else if (message.startsWith(Commands::DELETE_TASK)) {
+        int commandLength = strlen(Commands::DELETE_TASK);
+
+        int idStartIndex = commandLength + 1;
+
+        if (message.length() > idStartIndex) {
+            String taskID = message.substring(idStartIndex);
+            
+            Serial.println("Deleting task by id= " + taskID);
+
+            _taskService->deleteTask(taskID);
+        } else {
+            Serial.println("Error: DELETETASK command sent with no ID. message= " + message);
+        }
     } else {
         channel->sendResponse("ERROR: Unknown command.");
     }
