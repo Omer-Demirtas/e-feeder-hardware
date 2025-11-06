@@ -53,17 +53,9 @@ void ServoFeeder::update() {
 
     // Check if the dispensing duration has passed
     if (millis() - _startTime >= _dispenseDuration) {
-         // Return servo to idle angle & set state to idle
+        _state = IDLE;
+ 
+        // Return servo to idle angle & set state to idle
         _servo.write(_startAngle);
-        
-
-        Serial.println("Feeder (Servo) started dispensing.");
-
-        Serial.print(hour());
-        Serial.print(":");
-        Serial.print(minute());
-        Serial.print(":");
-        Serial.print(second());
-        Serial.println("");
     }
 }
