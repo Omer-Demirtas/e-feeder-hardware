@@ -41,9 +41,25 @@ void TaskService::handleTask(const Task& task) {
 }
 
 void TaskService::deleteTask(const String& taskID) {
-    // TODO
+    for (auto it = _tasks.begin(); it != _tasks.end(); ++it) {
+        
+        if (it->getID() == taskID) {
+            
+            _tasks.erase(it);
+            
+            _storage->saveTasks(_tasks);
+            
+            Serial.printf("Task '%s' deleted and storage updated.\n", taskID.c_str());
+            
+            return;
+        }
+    }
 }
 
 void TaskService::deleteAllTasks(){
-    // TODO
+    _tasks.clear();
+    
+    _storage->saveTasks(_tasks);
+    
+    Serial.println("All tasks deleted and storage cleared.");
 }
