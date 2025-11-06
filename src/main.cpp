@@ -2,12 +2,13 @@
 #include <Arduino.h>
 #include <TimeLib.h>
 
-#include "Secrets.h";
-
+#include "Secrets.h"
 #include "TaskService.h"
+#include <ArduinoJson.h>
+#include "MqttInterface.h"
 #include "CommandProcessor.h"
-#include "CommunicationInterface.h"
 #include "BluetoothInterface.h"
+#include "CommunicationInterface.h"
 
 // =========================================================================
 // === MOTOR TİPİ SEÇİMİ ===
@@ -33,6 +34,10 @@
     #define IN3 5
     #define IN4 17
 #endif
+
+// TODO make it better, this part should be modified
+#define HOME_ASSISTANT_ACTIVE true
+
 
 // --- NTP Configuration ---
 const char* ntpServer = "pool.ntp.org";
@@ -60,19 +65,56 @@ TaskService taskService(&storageService);
 
 CommandProcessor commandProcessor(&taskService);
 
+WiFiClient globalWifiClient;
+
 BluetoothInterface btInterface("KediMamaMakinesi");
 
+// TODO This should be parametric
+MqttInterface mqttInterface(globalWifiClient, MQTT_BROKER_PORT, MQTT_BROKER_IP, MQTT_USER, MQTT_PASS);
+
 CommunicationInterface* interfaces[] = {
-    &btInterface
+    &btInterface,
+    &mqttInterface
 };
 
 const int NUM_INTERFACES = sizeof(interfaces) / sizeof(interfaces[0]);
 
 Feeder* feeder;
 
-enum AppState { IDLE, WAITING_FOR_FEEDER };
+enum DeviceState { IDLE, WAITING_FOR_FEEDER };
 
-AppState currentState = IDLE;
+DeviceState deviceState;
+
+void setDeviceState(DeviceState state) {
+    String stateMessage = (state == IDLE) ? "IDLE" : "FEEDING";
+    
+    Serial.println("Device status set as " + stateMessage);
+    
+    deviceState = state;
+
+    // TODO make it better
+    if (HOME_ASSISTANT_ACTIVE) {
+        // ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
+        
+        char isoTimestamp[32];
+        
+        time_t now;
+        time(&now);
+        
+        // format ISO 8601 
+        // example: "2025-11-05T21:09:00"
+        strftime(isoTimestamp, sizeof(isoTimestamp), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+
+        JsonDocument jsonDoc;
+        jsonDoc["state"] = stateMessage;
+        jsonDoc["timestamp"] = isoTimestamp;
+
+        String jsonOutput;
+        serializeJson(jsonDoc, jsonOutput);
+
+        mqttInterface.sendResponse(MqttInterface::TOPIC_STATE, jsonOutput, true);
+    }
+}
 
 // =========================================================================
 // === CALLBACK METHOD | Called by #taskService
@@ -80,16 +122,16 @@ AppState currentState = IDLE;
 void onTaskTriggered_SetState(const Task& triggeredTask) {
     Serial.printf("callback is called for %s %s /n", triggeredTask.getID(), triggeredTask.getTime());
 
-    if (currentState == IDLE) {
+    if (deviceState == IDLE) {
+        setDeviceState(WAITING_FOR_FEEDER);
         feeder->startDispensing(triggeredTask.getAmount());
-        currentState = WAITING_FOR_FEEDER;
     } else {
         Serial.println("Feeder already working!");
     }
 }
 
 void initWifi() {
-WiFi.begin(WIFI_SSID, WIFI_PASS);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
@@ -150,6 +192,9 @@ void setup() {
 
     printLocalTime();
 
+    setDeviceState(IDLE);
+
+    Serial.printf("Active Interfaces %d \n", NUM_INTERFACES);
     Serial.println("System ready to start!");
 }
 
@@ -162,17 +207,19 @@ void loop() {
     taskService.update();
 
     for (int i = 0; i < NUM_INTERFACES; i++) {
+        interfaces[i]->update();
+        
         if (interfaces[i]->commandAvailable()) {
             String command = interfaces[i]->readCommand();
             commandProcessor.process(command, interfaces[i]);
         }
     }
 
-    switch (currentState) {
+    switch (deviceState) {
         case WAITING_FOR_FEEDER: {
             if (!feeder->isBusy()) {
+                setDeviceState(IDLE);
                 Serial.println("Motor gorevi tamamladi. Bosa geciliyor.");
-                currentState = IDLE;
             }
             break;
         }
