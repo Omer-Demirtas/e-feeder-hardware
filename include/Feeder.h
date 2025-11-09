@@ -15,6 +15,7 @@ public:
 
     // Returns true if the feeder is currently in the middle of dispensing.
     virtual bool isBusy() = 0;
+    virtual bool isIdle() = 0;
 };
 
 #endif

@@ -1,3 +1,4 @@
+#include "Logger.h"
 #include <Arduino.h>
 #include "ServoFeeder.h"
 #include <TimeLib.h>
@@ -6,12 +7,6 @@ ServoFeeder::ServoFeeder(int pin, int startAngle, int feedAngle) {
     _pin = pin;
     _startAngle = startAngle;
     _feedAngle = feedAngle;
-    
-    Serial.println("Servo feed constructor");
-
-    Serial.println(startAngle);
-
-    _servo.write(startAngle);
 
     // Initialize state
     _state = IDLE;
@@ -19,43 +14,43 @@ ServoFeeder::ServoFeeder(int pin, int startAngle, int feedAngle) {
 }
 
 void ServoFeeder::init() {
-    _servo.attach(_pin);
      // Move to idle position on startup
+    _servo.attach(_pin);
     _servo.write(_startAngle);
-    Serial.println("ServoFeeder Initialized.");
+
+    Logger::getInstance().info("Servo feeder initialized, Start Angle %d, Feed Angle %d", _startAngle, _feedAngle);
 }
 
 bool ServoFeeder::isBusy() {
     return _state != IDLE;
 }
 
+bool ServoFeeder::isIdle() {
+    return _state == IDLE;
+}
+
 void ServoFeeder::startDispensing(int amount) {
-    if (!isBusy()) {
+    if (isIdle()) {
         _state = DISPENSING;
         _startTime = millis(); 
         _servo.write(_feedAngle);
         
-        Serial.println("Feeder (Servo) started dispensing.");
-
-        Serial.print(hour());
-        Serial.print(":");
-        Serial.print(minute());
-        Serial.print(":");
-        Serial.print(second());
-        Serial.println("");
+        Logger::getInstance().info("Feeder (Servo) started dispensing.");
     }
 }
 
 void ServoFeeder::update() {
-    if (!isBusy()) {
+    if (isIdle()) {
         return;
     }
 
     // Check if the dispensing duration has passed
     if (millis() - _startTime >= _dispenseDuration) {
-        _state = IDLE;
- 
         // Return servo to idle angle & set state to idle
         _servo.write(_startAngle);
+
+        Logger::getInstance().info("Feeder (Servo) stopped dispensing.");
+        
+        _state = IDLE;
     }
 }

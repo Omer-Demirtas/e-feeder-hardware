@@ -1,8 +1,12 @@
 #include <sstream>
+#include "Logger.h"
 #include "Commands.h"
 #include "CommandProcessor.h"
+#include "FileLoggerService.h"
 
-CommandProcessor::CommandProcessor(TaskService* taskService) : _taskService(taskService) {}
+CommandProcessor::CommandProcessor(TaskService* taskService, FileLoggerService* fileLogger) 
+    : _taskService(taskService), _fileLogger(fileLogger) 
+{}
 
 void CommandProcessor::process(const String& message, CommunicationInterface* channel) {
     if (message.startsWith(Commands::GET_TASKS)) {
@@ -58,8 +62,13 @@ void CommandProcessor::process(const String& message, CommunicationInterface* ch
         } else {
             Serial.println("Error: DELETETASK command sent with no ID. message= " + message);
         }
+    } else if (message.startsWith(Commands::GETLOGS)) {
+        channel->sendResponse(_fileLogger->readLogs());
+    } else if (message.startsWith(Commands::CLEARLOGS)) {
+        _fileLogger->clearLogs();
+        channel->sendResponse("OK");
     } else {
-        channel->sendResponse("ERROR: Unknown command.");
+        Logger::getInstance().error("Unknown command %s", message);
     }
 
     Serial.println("Processed command: " + message);

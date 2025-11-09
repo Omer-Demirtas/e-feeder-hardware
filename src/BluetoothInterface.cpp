@@ -21,3 +21,14 @@ String BluetoothInterface::readCommand() {
 void BluetoothInterface::sendResponse(const String& response) {
     _serialBT.println(response);
 }
+
+
+// --- LogObserver ---
+
+bool BluetoothInterface::isConnected() {
+    return _serialBT.connected(); // or _serialBT.hasClient()
+}
+
+void BluetoothInterface::onLog(const String& formattedMessage) {
+    _serialBT.println(formattedMessage);
+}

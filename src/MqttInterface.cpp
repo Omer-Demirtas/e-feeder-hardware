@@ -1,5 +1,7 @@
+#include "Logger.h"
 #include "MqttInterface.h"
 
+const char* MqttInterface::TOPIC_LOG = "feeder/log";
 const char* MqttInterface::TOPIC_STATE = "feeder/state";
 const char* MqttInterface::TOPIC_COMMAND = "feeder/command";
 
@@ -18,7 +20,8 @@ MqttInterface::MqttInterface(
 }
 
 void MqttInterface::begin() {
-    Serial.println("Begin MqttInterface");
+    Logger::getInstance().info("Initializng MqttInterface");
+    
     _mqttClient.setServer(_brokerIp.c_str(), _brokerPort);
     _mqttClient.setCallback(MqttInterface::onMessageReceived);
     connectMqtt();
@@ -51,7 +54,7 @@ void MqttInterface::connectMqtt() {
         return;
     }
 
-    Serial.print("connecting to MQTT Server");
+    Logger::getInstance().info("connecting to MQTT Server...");
 
     while (!_mqttClient.connected()) {
         Serial.print(".");
@@ -59,12 +62,11 @@ void MqttInterface::connectMqtt() {
         // TODO make topic parametric
         // TODO what is mean of id?
         if (_mqttClient.connect("feeder", _mqttUser.c_str(), _mqttPass.c_str())) {
-            Serial.println("\nConnection esteblished to MQTT Server!");
-            Serial.printf("Subscribing topic(%s) successfully\n", TOPIC_COMMAND);
+            Logger::getInstance().info("Connection esteblished to MQTT Server!");
+            Logger::getInstance().info("Subscribing topic(%s) successfully\n", TOPIC_COMMAND);
             _mqttClient.subscribe(TOPIC_COMMAND);
         } else {
-            Serial.print("\nERROR, rc=");
-            Serial.println(_mqttClient.state());
+            Logger::getInstance().error("\nERROR, rc=%d", _mqttClient.state());
             delay(5000);
         }
     }
@@ -82,4 +84,14 @@ void MqttInterface::onMessageReceived(char* topic, byte* payload, unsigned int l
     Serial.println(message);
 
     _commandQueue.push_back(message);
+}
+
+// --- LogObserver ---
+
+bool MqttInterface::isConnected() {
+    return _mqttClient.connected();
+}
+
+void MqttInterface::onLog(const String& formattedMessage) {
+    _mqttClient.publish(MqttInterface::TOPIC_LOG, formattedMessage.c_str());
 }

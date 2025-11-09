@@ -1,12 +1,13 @@
-#include "TaskService.h"
+#include "Logger.h"
 #include <TimeLib.h>
+#include "TaskService.h"
 
 TaskService::TaskService(StorageService* storage) : _storage(storage) { }
 
 void TaskService::begin(TaskTriggerCallback callback) {
     _tasks = _storage->loadTasks();
     _onTaskTriggeredCallback = callback; 
-    Serial.printf("loaded(%d) task successfully!\n", _tasks.size());
+    Logger::getInstance().info("loaded(%d) task successfully!\n", _tasks.size());
 }
 
 void TaskService::update() {
@@ -32,11 +33,11 @@ const std::vector<Task>& TaskService::getTasks() const {
 void TaskService::addTask(const Task& task) {
     _tasks.push_back(task);
     _storage->saveTasks(_tasks);
-    Serial.println("New task added");
+    Logger::getInstance().info("New task added");
 }
 
 void TaskService::handleTask(const Task& task) {
-    Serial.printf("Handling Task(%S) /n", task.getID());
+    Logger::getInstance().info("Handling Task(%S) /n", task.getID());
     _onTaskTriggeredCallback(task);
 }
 
@@ -49,7 +50,7 @@ void TaskService::deleteTask(const String& taskID) {
             
             _storage->saveTasks(_tasks);
             
-            Serial.printf("Task '%s' deleted and storage updated.\n", taskID.c_str());
+            Logger::getInstance().info("Task '%s' deleted and storage updated.\n", taskID.c_str());
             
             return;
         }
@@ -61,5 +62,5 @@ void TaskService::deleteAllTasks(){
     
     _storage->saveTasks(_tasks);
     
-    Serial.println("All tasks deleted and storage cleared.");
+    Logger::getInstance().info("All tasks deleted and storage cleared.");
 }

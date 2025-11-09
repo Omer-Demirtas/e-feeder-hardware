@@ -1,13 +1,15 @@
 #include <WiFi.h>
+#include "Logger.h"
 #include <Arduino.h>
 #include <TimeLib.h>
-
 #include "Secrets.h"
 #include "TaskService.h"
 #include <ArduinoJson.h>
 #include "MqttInterface.h"
 #include "CommandProcessor.h"
+#include "FileLoggerService.h"
 #include "BluetoothInterface.h"
+#include "CommunicationManager.h"
 #include "CommunicationInterface.h"
 
 // =========================================================================
@@ -36,48 +38,25 @@
 #endif
 
 // TODO make it better, this part should be modified
-#define HOME_ASSISTANT_ACTIVE true
+#define HOME_ASSISTANT_ACTIVE false
 
 
 // --- NTP Configuration ---
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3 * 3600; // Istanbul is GMT+3, so 3 hours * 3600 seconds/hour TODO make it dynamic
-const int daylightOffset_sec = 0;      // Turkey does not observe daylight saving
-
-/**
- * @brief Prints the current local time to the Serial Monitor
- */
-void printLocalTime() {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        Serial.println("Failed to obtain time");
-        return;
-    }
-
-    char timeStringBuff[50]; 
-    strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", &timeinfo);
-    Serial.println(timeStringBuff);
-}
-
-StorageService storageService;
-
-TaskService taskService(&storageService);
-
-CommandProcessor commandProcessor(&taskService);
+const int daylightOffset_sec = 0;    // Turkey does not observe daylight saving
 
 WiFiClient globalWifiClient;
+FileLoggerService fileLogger;
+StorageService storageService;
+TaskService taskService(&storageService);
+CommandProcessor commandProcessor(&taskService, &fileLogger);
 
+// Communication Interfaces
 BluetoothInterface btInterface("KediMamaMakinesi");
-
-// TODO This should be parametric
 MqttInterface mqttInterface(globalWifiClient, MQTT_BROKER_PORT, MQTT_BROKER_IP, MQTT_USER, MQTT_PASS);
 
-CommunicationInterface* interfaces[] = {
-    &btInterface,
-    &mqttInterface
-};
-
-const int NUM_INTERFACES = sizeof(interfaces) / sizeof(interfaces[0]);
+CommunicationManager commManager(&commandProcessor);
 
 Feeder* feeder;
 
@@ -86,14 +65,12 @@ enum DeviceState { IDLE, WAITING_FOR_FEEDER };
 DeviceState deviceState;
 
 void setDeviceState(DeviceState state) {
-    String stateMessage = (state == IDLE) ? "IDLE" : "FEEDING";
-    
-    Serial.println("Device status set as " + stateMessage);
-    
     deviceState = state;
 
     // TODO make it better
-    if (HOME_ASSISTANT_ACTIVE) {
+    /* if (HOME_ASSISTANT_ACTIVE) {
+        String stateMessage = (state == IDLE) ? "IDLE" : "FEEDING";
+
         // ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
         
         char isoTimestamp[32];
@@ -109,24 +86,32 @@ void setDeviceState(DeviceState state) {
         jsonDoc["state"] = stateMessage;
         jsonDoc["timestamp"] = isoTimestamp;
 
+        JsonArray tasksArray = jsonDoc.createNestedArray("tasks");
+        
+        const std::vector<Task>& tasks = taskService.getTasks();
+
+        for (const auto& task : tasks) {
+            tasksArray.add(task.getTime());
+        }
+
         String jsonOutput;
         serializeJson(jsonDoc, jsonOutput);
 
         mqttInterface.sendResponse(MqttInterface::TOPIC_STATE, jsonOutput, true);
-    }
+    } */
 }
 
 // =========================================================================
 // === CALLBACK METHOD | Called by #taskService
 // =========================================================================
 void onTaskTriggered_SetState(const Task& triggeredTask) {
-    Serial.printf("callback is called for %s %s /n", triggeredTask.getID(), triggeredTask.getTime());
+    Logger::getInstance().info("callback is called for %s %s", triggeredTask.getID(), triggeredTask.getTime());
 
     if (deviceState == IDLE) {
         setDeviceState(WAITING_FOR_FEEDER);
         feeder->startDispensing(triggeredTask.getAmount());
     } else {
-        Serial.println("Feeder already working!");
+        Logger::getInstance().warn("Feeder already working!");
     }
 }
 
@@ -140,13 +125,13 @@ void initWifi() {
     Serial.println("/n");
 
     // TODO log more details
-    Serial.println("WiFi connected!");
+    Logger::getInstance().info("WiFi connected!");
 
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
     struct tm timeinfo;
 
-    Serial.print("Waiting for time sync");
+    Logger::getInstance().info("Waiting for time sync");
 
     while (!getLocalTime(&timeinfo)) {
         Serial.print(".");
@@ -155,7 +140,7 @@ void initWifi() {
     
     Serial.println("/n");
 
-    Serial.println("Time Sync Successfuly!");
+    Logger::getInstance().info("Time Sync Successfuly!");
 
     time_t now_utc;
     time(&now_utc);
@@ -170,9 +155,14 @@ void initWifi() {
 // =========================================================================
 void setup() {
     Serial.begin(115200);
-    Serial.println("\nSistem starting...");
+    Logger::getInstance().begin(Logger::LOG_LEVEL_INFO, true);
 
-    initWifi();
+    if (!fileLogger.begin()) {
+        Logger::getInstance().error("Failed to initialize FileLoggerService!");
+    } else {
+        Logger::getInstance().registerObserver(&fileLogger);
+        Logger::getInstance().info("FileLoggerService initialized and registered.");
+    }
 
     #if MOTOR_TYPE == MOTOR_TYPE_SERVO
         feeder = new ServoFeeder(SERVO_PIN, IDLE_ANGLE, FEED_ANGLE);
@@ -180,22 +170,26 @@ void setup() {
         feeder = new StepperFeeder(IN1, IN2, IN3, IN4);
     #endif
 
+    feeder->init();
+
     storageService.begin();
 
     taskService.begin(onTaskTriggered_SetState);
 
-    feeder->init();
+    initWifi();
 
-    for (int i = 0; i < NUM_INTERFACES; i++) {
-        interfaces[i]->begin();
-    }
+    commManager.addInterface(&btInterface);
+    commManager.addInterface(&mqttInterface);   
 
-    printLocalTime();
+    Logger::getInstance().registerObserver(&btInterface);
+    Logger::getInstance().registerObserver(&mqttInterface);
 
     setDeviceState(IDLE);
 
-    Serial.printf("Active Interfaces %d \n", NUM_INTERFACES);
-    Serial.println("System ready to start!");
+    btInterface.begin();
+    mqttInterface.begin();
+
+    Logger::getInstance().info("System ready to start!");
 }
 
 
@@ -206,20 +200,13 @@ void loop() {
     feeder->update();
     taskService.update();
 
-    for (int i = 0; i < NUM_INTERFACES; i++) {
-        interfaces[i]->update();
-        
-        if (interfaces[i]->commandAvailable()) {
-            String command = interfaces[i]->readCommand();
-            commandProcessor.process(command, interfaces[i]);
-        }
-    }
+    commManager.updateAll();
 
     switch (deviceState) {
         case WAITING_FOR_FEEDER: {
-            if (!feeder->isBusy()) {
+            if (feeder->isIdle()) {
+                Logger::getInstance().info("Feeder finished!");
                 setDeviceState(IDLE);
-                Serial.println("Motor gorevi tamamladi. Bosa geciliyor.");
             }
             break;
         }

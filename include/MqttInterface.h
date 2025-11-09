@@ -18,11 +18,17 @@ public:
     void update() override;
     bool commandAvailable() override;
     String readCommand() override;
+
     // This should be update to usable version
     void sendResponse(const String& response) override;
 
     void sendResponse(const char* topic, const String& message, bool retained);
-
+    
+    // Log Observer
+    bool isConnected() override;
+    void onLog(const String& formattedMessage) override;
+    
+    static const char* TOPIC_LOG;
     static const char* TOPIC_STATE;
     static const char* TOPIC_COMMAND;
 private:

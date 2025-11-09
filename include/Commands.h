@@ -7,4 +7,6 @@ namespace Commands {
     const char* const DELETE_ALL     = "DELETEALLTASKS";
     const char* const GET_TASKS      = "GETTASKS";
     const char* const FEED           = "FEED";
+    const char* const GETLOGS        = "GETLOGS";
+    const char* const CLEARLOGS      = "CLEARLOGS";
 }

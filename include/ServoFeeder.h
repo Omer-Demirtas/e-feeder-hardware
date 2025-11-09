@@ -19,8 +19,9 @@ public:
     void init() override;
     void startDispensing(int amount) override;
     void update() override;
+    
     bool isBusy() override;
-
+    bool isIdle() override;
 private:
     #ifdef ESP32
         Servo _servo;  
